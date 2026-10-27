@@ -1,0 +1,51 @@
+@baseUrl = http://localhost:5000/api
+
+### 1. Register (expect 201)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "Test@Example.com",
+  "username": "testuser",
+  "password": "supersecret123"
+}
+
+### 2. Bad input (expect 400)
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "notanemail",
+  "username": "a b!",
+  "password": "123"
+}
+
+### 3. Login (expect 200 and a token)
+# @name login
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "supersecret123"
+}
+
+### 4. Wrong password (expect 401)
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "wrongpassword"
+}
+
+### 5. Me without a token (expect 401)
+GET {{baseUrl}}/auth/me
+
+### 6. Me with a token (expect 200)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer {{login.response.body.token}}
+
+### 7. Me with a fake token (expect 401)
+GET {{baseUrl}}/auth/me
+Authorization: Bearer abc.def.ghi

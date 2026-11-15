@@ -158,3 +158,113 @@ Authorization: Bearer {{adminLogin.response.body.token}}
 ### 21. Delete again (expect 404)
 DELETE {{baseUrl}}/problems/square-a-number
 Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 22. Correct solution (expect ACCEPTED)
+# @name ac
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "language": "python",
+  "code": "a, b = map(int, input().split())\nprint(a + b)"
+}
+
+### 23. Wrong answer (expect WRONG_ANSWER, failure details shown)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "a, b = map(int, input().split())\nprint(a - b)"
+}
+
+### 24. Runtime error (expect RUNTIME_ERROR with a traceback)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "print(1 / 0)"
+}
+
+### 25. Syntax error (expect RUNTIME_ERROR mentioning SyntaxError)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "print('oops'"
+}
+
+### 26. Infinite loop (expect TIME_LIMIT_EXCEEDED after a few seconds)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "while True:\n    pass"
+}
+
+### 27. Memory bomb (expect MEMORY_LIMIT_EXCEEDED)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "x = 'a' * (10**9)\nprint(len(x))"
+}
+
+### 28. Cheater: hard-codes the sample answers (expect WRONG_ANSWER on test 4, no details)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "s = input().strip()\nprint(7 if s == '3 4' else 5 if s == '-5 10' else 0)"
+}
+
+### 29. FizzBuzz correct (expect ACCEPTED)
+POST {{baseUrl}}/problems/fizzbuzz/submit
+Authorization: Bearer {{studentLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "n = int(input())\nfor i in range(1, n + 1):\n    if i % 15 == 0:\n        print('FizzBuzz')\n    elif i % 3 == 0:\n        print('Fizz')\n    elif i % 5 == 0:\n        print('Buzz')\n    else:\n        print(i)"
+}
+
+### 30. No token (expect 401)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Content-Type: application/json
+
+{ "code": "print(1)" }
+
+### 31. Unknown problem (expect 404)
+POST {{baseUrl}}/problems/nope/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{ "code": "print(1)" }
+
+### 32. Empty code (expect 400)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{ "code": "" }
+
+### 33. My submissions (expect a list, newest first)
+GET {{baseUrl}}/submissions
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 34. My submissions for one problem
+GET {{baseUrl}}/submissions?problem=a-plus-b&limit=3
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 35. One submission with code (expect 200)
+GET {{baseUrl}}/submissions/{{ac.response.body.submission.id}}
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 36. Someone else's submission as student (expect 404)
+GET {{baseUrl}}/submissions/{{ac.response.body.submission.id}}
+Authorization: Bearer {{studentLogin.response.body.token}}

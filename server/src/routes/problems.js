@@ -7,6 +7,10 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"];
 
+const rateLimit = require("express-rate-limit");
+const { judgeSubmission } = require("../services/judge");
+const { publicSubmission } = require("../utils/submissions");
+
 const testCaseSchema = z.object({
   input: z.string().max(10000),
   expectedOutput: z.string().max(10000),
@@ -129,4 +133,62 @@ router.delete(
   }
 );
 
+const submitSchema = z.object({
+  language: z.enum(["python"]).default("python"),
+  code: z.string().min(1, "Code cannot be empty").max(50000),
+});
+
+// 10 submissions per minute per user
+const submitLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 10,
+  keyGenerator: (req) => String(req.user.id),
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "Too many submissions, please slow down" },
+});
+
+// POST /api/problems/:slug/submit
+router.post(
+  "/:slug/submit",
+  requireAuth,
+  submitLimiter,
+  validate(submitSchema),
+  async (req, res, next) => {
+    try {
+      const problem = await prisma.problem.findUnique({
+        where: { slug: req.params.slug },
+        include: { testCases: { orderBy: { position: "asc" } } },
+      });
+      if (!problem) return res.status(404).json({ error: "Problem not found" });
+
+      const { language, code } = req.body;
+      const result = await judgeSubmission(code, problem, problem.testCases);
+
+      const submission = await prisma.submission.create({
+        data: {
+          userId: req.user.id,
+          problemId: problem.id,
+          language,
+          code,
+          verdict: result.verdict,
+          passedTests: result.passedTests,
+          totalTests: result.totalTests,
+          failedTest: result.failedTest,
+          timeMs: result.timeMs,
+          errorMessage: result.errorMessage,
+        },
+      });
+
+      res.status(201).json({
+        submission: publicSubmission(submission),
+        failure: result.failure,
+      });
+    } catch (err) {
+      next(err);
+    }
+  }
+);
+
 module.exports = router;
+

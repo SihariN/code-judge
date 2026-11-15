@@ -13,12 +13,13 @@ enum Role {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  email        String   @unique
-  username     String   @unique
+  id           Int          @id @default(autoincrement())
+  email        String       @unique
+  username     String       @unique
   passwordHash String
-  role         Role     @default(USER)
-  createdAt    DateTime @default(now())
+  role         Role         @default(USER)
+  createdAt    DateTime     @default(now())
+  submissions  Submission[]
 }
 
 enum Difficulty {
@@ -28,15 +29,16 @@ enum Difficulty {
 }
 
 model Problem {
-  id            Int        @id @default(autoincrement())
-  slug          String     @unique
+  id            Int          @id @default(autoincrement())
+  slug          String       @unique
   title         String
   description   String
   difficulty    Difficulty
-  timeLimitMs   Int        @default(2000)
-  memoryLimitMb Int        @default(128)
-  createdAt     DateTime   @default(now())
+  timeLimitMs   Int          @default(2000)
+  memoryLimitMb Int          @default(128)
+  createdAt     DateTime     @default(now())
   testCases     TestCase[]
+  submissions   Submission[]
 }
 
 model TestCase {
@@ -47,4 +49,34 @@ model TestCase {
   expectedOutput String
   isSample       Boolean @default(false)
   position       Int     @default(0)
+}
+
+enum Verdict {
+  ACCEPTED
+  WRONG_ANSWER
+  TIME_LIMIT_EXCEEDED
+  MEMORY_LIMIT_EXCEEDED
+  OUTPUT_LIMIT_EXCEEDED
+  RUNTIME_ERROR
+  INTERNAL_ERROR
+}
+
+model Submission {
+  id           Int      @id @default(autoincrement())
+  userId       Int
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  problemId    Int
+  problem      Problem  @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  language     String   @default("python")
+  code         String
+  verdict      Verdict
+  passedTests  Int
+  totalTests   Int
+  failedTest   Int?
+  timeMs       Int
+  errorMessage String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([problemId, verdict])
 }

@@ -6,7 +6,7 @@ const crypto = require("crypto");
 
 const MAX_OUTPUT_BYTES = 64 * 1024;
 
-async function runPython(code, input = "", timeLimitMs = 5000) {
+async function runPython(code, input = "", timeLimitMs = 5000, memoryMb = 128) {
   // 1. Put the submitted code in a temp folder we can mount into the container
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "judge-"));
   await fs.writeFile(path.join(dir, "main.py"), code);
@@ -18,8 +18,8 @@ async function runPython(code, input = "", timeLimitMs = 5000) {
     "run", "--rm", "-i",
     "--name", name,
     "--network", "none",              // no internet
-    "--memory", "128m",               // RAM cap
-    "--memory-swap", "128m",          // no swap, so the cap is real
+    "--memory", `${memoryMb}m`,       // RAM cap
+    "--memory-swap", `${memoryMb}m`,  // no swap, so the cap is real
     "--cpus", "0.5",                  // half a CPU core
     "--pids-limit", "64",             // stops fork bombs
     "--read-only",                    // container filesystem is read-only

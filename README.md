@@ -12,3 +12,4 @@ Every submission runs in a throwaway Docker container with:
 - Half a CPU core and a 64-process limit (blocks fork bombs)
 - Read-only filesystem, all Linux capabilities dropped
 - A hard time limit enforced from the host
+- Seed sample problems: `npx prisma db seed`

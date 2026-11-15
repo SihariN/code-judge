@@ -20,3 +20,31 @@ model User {
   role         Role     @default(USER)
   createdAt    DateTime @default(now())
 }
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+model Problem {
+  id            Int        @id @default(autoincrement())
+  slug          String     @unique
+  title         String
+  description   String
+  difficulty    Difficulty
+  timeLimitMs   Int        @default(2000)
+  memoryLimitMb Int        @default(128)
+  createdAt     DateTime   @default(now())
+  testCases     TestCase[]
+}
+
+model TestCase {
+  id             Int     @id @default(autoincrement())
+  problemId      Int
+  problem        Problem @relation(fields: [problemId], references: [id], onDelete: Cascade)
+  input          String
+  expectedOutput String
+  isSample       Boolean @default(false)
+  position       Int     @default(0)
+}

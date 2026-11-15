@@ -49,3 +49,112 @@ Authorization: Bearer {{login.response.body.token}}
 ### 7. Me with a fake token (expect 401)
 GET {{baseUrl}}/auth/me
 Authorization: Bearer abc.def.ghi
+
+### 8. Login as admin (get a fresh token)
+# @name adminLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "supersecret123"
+}
+
+### 9. Register a normal student
+POST {{baseUrl}}/auth/register
+Content-Type: application/json
+
+{
+  "email": "student@example.com",
+  "username": "student1",
+  "password": "supersecret123"
+}
+
+### 10. Login as student
+# @name studentLogin
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+
+{
+  "email": "student@example.com",
+  "password": "supersecret123"
+}
+
+### 11. List problems (public, expect 4)
+GET {{baseUrl}}/problems
+
+### 12. Filter by difficulty
+GET {{baseUrl}}/problems?difficulty=medium
+
+### 13. One problem (expect only sample test cases)
+GET {{baseUrl}}/problems/a-plus-b
+
+### 14. Unknown problem (expect 404)
+GET {{baseUrl}}/problems/does-not-exist
+
+### 15. Create without token (expect 401)
+POST {{baseUrl}}/problems
+Content-Type: application/json
+
+{}
+
+### 16. Create as student (expect 403)
+POST {{baseUrl}}/problems
+Authorization: Bearer {{studentLogin.response.body.token}}
+Content-Type: application/json
+
+{}
+
+### 17. Create as admin with bad data (expect 400)
+POST {{baseUrl}}/problems
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "slug": "Bad Slug!",
+  "title": "x",
+  "description": "short",
+  "difficulty": "IMPOSSIBLE",
+  "testCases": []
+}
+
+### 18. Create as admin (expect 201)
+POST {{baseUrl}}/problems
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "slug": "square-a-number",
+  "title": "Square a Number",
+  "description": "Read an integer and print its square.",
+  "difficulty": "EASY",
+  "timeLimitMs": 2000,
+  "memoryLimitMb": 128,
+  "testCases": [
+    { "input": "4\n", "expectedOutput": "16", "isSample": true },
+    { "input": "-3\n", "expectedOutput": "9" }
+  ]
+}
+
+### 19. Create the same slug again (expect 409)
+POST {{baseUrl}}/problems
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "slug": "square-a-number",
+  "title": "Square a Number",
+  "description": "Read an integer and print its square.",
+  "difficulty": "EASY",
+  "testCases": [
+    { "input": "4\n", "expectedOutput": "16", "isSample": true }
+  ]
+}
+
+### 20. Delete as admin (expect 204)
+DELETE {{baseUrl}}/problems/square-a-number
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 21. Delete again (expect 404)
+DELETE {{baseUrl}}/problems/square-a-number
+Authorization: Bearer {{adminLogin.response.body.token}}

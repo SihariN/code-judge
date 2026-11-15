@@ -3,6 +3,7 @@ const cors = require("cors");
 const healthRoutes = require("./routes/health");
 const authRoutes = require("./routes/auth");
 const { notFound, errorHandler } = require("./middleware/errors");
+const problemRoutes = require("./routes/problems");
 
 const app = express();
 
@@ -11,6 +12,7 @@ app.use(express.json({ limit: "100kb" }));
 
 app.use("/api/health", healthRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/problems", problemRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

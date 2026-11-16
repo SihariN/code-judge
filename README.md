@@ -36,16 +36,19 @@ Hidden test cases are never revealed. Details are only shown for sample cases.
 4. Seed sample problems: `npx prisma db seed`
 5. Start the API: `npm run dev`
 6. In another terminal, start the judge worker: `npm run worker`
+7. Optional: open http://localhost:5000/live/ to watch verdicts update live
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-    U[Client] -->|POST submit| A[Express API]
+    U[Browser] -->|POST submit| A[Express API]
     A -->|1. save PENDING| P[(PostgreSQL)]
-    A -->|2. enqueue job| R[(Redis queue)]
-    R -->|3. take job| W[Judge worker]
+    A -->|2. enqueue job| Q[(Redis queue)]
+    Q -->|3. take job| W[Judge worker]
     W -->|4. run each test| D[Docker sandbox]
     W -->|5. save verdict| P
-    U -->|GET submission| A
+    W -->|6. publish progress| R[(Redis pub/sub)]
+    R -->|7. subscribe| A
+    A -.->|8. WebSocket push| U
 ```

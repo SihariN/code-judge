@@ -52,6 +52,8 @@ model TestCase {
 }
 
 enum Verdict {
+  PENDING
+  JUDGING
   ACCEPTED
   WRONG_ANSWER
   TIME_LIMIT_EXCEEDED
@@ -70,11 +72,12 @@ model Submission {
   language     String   @default("python")
   code         String
   verdict      Verdict
-  passedTests  Int
-  totalTests   Int
+  passedTests  Int      @default(0)
+  totalTests   Int      @default(0)
   failedTest   Int?
-  timeMs       Int
+  timeMs       Int      @default(0)
   errorMessage String?
+  failure      Json?
   createdAt    DateTime @default(now())
 
   @@index([userId, createdAt])

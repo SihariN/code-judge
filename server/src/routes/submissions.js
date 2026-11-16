@@ -45,7 +45,10 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       return res.status(404).json({ error: "Submission not found" });
     }
 
-    res.json({ submission: { ...publicSubmission(s), code: s.code } });
+        res.json({
+          submission: { ...publicSubmission(s), code: s.code },
+          failure: s.failure,
+        });
   } catch (err) {
     next(err);
   }

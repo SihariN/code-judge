@@ -8,7 +8,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"];
 
 const rateLimit = require("express-rate-limit");
-const { judgeSubmission } = require("../services/judge");
+const { submissionQueue } = require("../queue/submissionQueue");
 const { publicSubmission } = require("../utils/submissions");
 
 const testCaseSchema = z.object({
@@ -158,32 +158,47 @@ router.post(
     try {
       const problem = await prisma.problem.findUnique({
         where: { slug: req.params.slug },
-        include: { testCases: { orderBy: { position: "asc" } } },
+        select: { id: true, _count: { select: { testCases: true } } },
       });
       if (!problem) return res.status(404).json({ error: "Problem not found" });
 
       const { language, code } = req.body;
-      const result = await judgeSubmission(code, problem, problem.testCases);
 
+      // 1. Record the submission immediately as PENDING
       const submission = await prisma.submission.create({
         data: {
           userId: req.user.id,
           problemId: problem.id,
           language,
           code,
-          verdict: result.verdict,
-          passedTests: result.passedTests,
-          totalTests: result.totalTests,
-          failedTest: result.failedTest,
-          timeMs: result.timeMs,
-          errorMessage: result.errorMessage,
+          verdict: "PENDING",
+          totalTests: problem._count.testCases,
         },
       });
 
-      res.status(201).json({
-        submission: publicSubmission(submission),
-        failure: result.failure,
-      });
+      // 2. Put a job on the queue for the worker to pick up
+      try {
+        await submissionQueue.add(
+          "judge",
+          { submissionId: submission.id },
+          { jobId: `submission-${submission.id}` }
+        );
+      } catch (queueErr) {
+        console.error("Could not enqueue submission:", queueErr.message);
+        await prisma.submission.update({
+          where: { id: submission.id },
+          data: {
+            verdict: "INTERNAL_ERROR",
+            errorMessage: "The judge queue is unavailable",
+          },
+        });
+        return res
+          .status(503)
+          .json({ error: "The judge is unavailable, please try again later" });
+      }
+
+      // 3. Respond right away. 202 means "accepted, still being processed"
+      res.status(202).json({ submission: publicSubmission(submission) });
     } catch (err) {
       next(err);
     }

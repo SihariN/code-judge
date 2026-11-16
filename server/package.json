@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "worker": "nodemon src/worker.js",
+    "start": "node src/server.js",
+    "start:worker": "node src/worker.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
@@ -17,10 +19,12 @@
   "dependencies": {
     "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
+    "bullmq": "^5.81.5",
     "cors": "^2.8.6",
     "dotenv": "^18.0.9",
     "express": "^5.3.0",
     "express-rate-limit": "^7.5.1",
+    "ioredis": "^5.11.1",
     "jsonwebtoken": "^9.0.3",
     "zod": "^4.6.7"
   },

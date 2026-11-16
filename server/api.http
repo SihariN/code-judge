@@ -268,3 +268,58 @@ Authorization: Bearer {{adminLogin.response.body.token}}
 ### 36. Someone else's submission as student (expect 404)
 GET {{baseUrl}}/submissions/{{ac.response.body.submission.id}}
 Authorization: Bearer {{studentLogin.response.body.token}}
+
+### 37. Submit a correct solution (expect 202 and verdict PENDING)
+# @name q1
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "a, b = map(int, input().split())\nprint(a + b)"
+}
+
+### 38. Poll it (send this a few seconds after 37; expect ACCEPTED)
+GET {{baseUrl}}/submissions/{{q1.response.body.submission.id}}
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 39. Submit a wrong solution
+# @name q2
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "a, b = map(int, input().split())\nprint(a - b)"
+}
+
+### 40. Poll it (expect WRONG_ANSWER with failure details)
+GET {{baseUrl}}/submissions/{{q2.response.body.submission.id}}
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 41. Submit an infinite loop (run this 4 times quickly)
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "while True:\n    pass"
+}
+
+### 42. See all my submissions and their statuses
+GET {{baseUrl}}/submissions?limit=10
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 43. Submit while the worker is stopped
+# @name q4
+POST {{baseUrl}}/problems/a-plus-b/submit
+Authorization: Bearer {{adminLogin.response.body.token}}
+Content-Type: application/json
+
+{
+  "code": "a, b = map(int, input().split())\nprint(a + b)"
+}
+
+### 44. Poll the one from request 43
+GET {{baseUrl}}/submissions/{{q4.response.body.submission.id}}
+Authorization: Bearer {{adminLogin.response.body.token}}

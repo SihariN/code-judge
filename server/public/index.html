@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Code Judge - live test page</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #0f1115; color: #e6e6e6; max-width: 900px; margin: 2rem auto; padding: 0 1rem; }
+    input, select, textarea, button { font: inherit; padding: 0.5rem; margin: 0.25rem 0; border-radius: 6px; border: 1px solid #333; background: #181b22; color: inherit; }
+    textarea { width: 100%; box-sizing: border-box; font-family: ui-monospace, Consolas, monospace; }
+    button { cursor: pointer; background: #2f6fed; border: none; padding: 0.5rem 1rem; }
+    #log { margin-top: 1rem; font-family: ui-monospace, Consolas, monospace; font-size: 0.9rem; }
+    .line { padding: 0.25rem 0.5rem; border-left: 3px solid #555; margin-bottom: 2px; white-space: pre-wrap; }
+    .ok { border-color: #2ea043; color: #7ee787; }
+    .wait { border-color: #d29922; color: #e3b341; }
+    .bad { border-color: #f85149; color: #ff7b72; }
+    .detail { border-color: #333; color: #9aa4b2; margin-left: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Live verdict test page</h1>
+
+  <section id="login">
+    <input id="email" placeholder="email" value="test@example.com" />
+    <input id="password" type="password" placeholder="password" value="supersecret123" />
+    <button id="loginBtn">Log in</button>
+    <span id="loginMsg"></span>
+  </section>
+
+  <section id="app" hidden>
+    <p>Socket: <strong id="status">disconnected</strong></p>
+    <select id="problem"></select>
+    <textarea id="code" rows="10"></textarea>
+    <button id="submit">Submit</button>
+    <h3>Live events</h3>
+    <div id="log"></div>
+  </section>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let token = null;
+    let socket = null;
+
+    const defaultCode = [
+      "import time",
+      "time.sleep(1)  # slow on purpose so you can watch the progress",
+      "a, b = map(int, input().split())",
+      "print(a + b)",
+    ].join("\n");
+    $("code").value = defaultCode;
+
+    function log(text, cls = "") {
+      const line = document.createElement("div");
+      line.className = "line " + cls;
+      // textContent (not innerHTML) so error messages can't inject HTML
+      line.textContent = new Date().toLocaleTimeString() + "  " + text;
+      $("log").prepend(line);
+    }
+
+    async function loadProblems() {
+      const res = await fetch("/api/problems");
+      const data = await res.json();
+      $("problem").innerHTML = "";
+      for (const p of data.problems) {
+        const option = document.createElement("option");
+        option.value = p.slug;
+        option.textContent = p.title + " (" + p.slug + ")";
+        $("problem").appendChild(option);
+      }
+    }
+
+    function connectSocket() {
+      socket = io({ auth: { token } });
+
+      socket.on("connect", () => { $("status").textContent = "connected"; });
+      socket.on("disconnect", () => { $("status").textContent = "disconnected"; });
+      socket.on("connect_error", (err) => {
+        $("status").textContent = "error: " + err.message;
+      });
+
+      socket.on("submission:update", (s) => {
+        let text = "#" + s.id + " " + s.problemSlug + ": " + s.verdict;
+        if (s.verdict === "JUDGING") {
+          text += " (" + s.passedTests + "/" + s.totalTests + " tests passed)";
+        }
+        if (s.failedTest) text += " (failed test " + s.failedTest + ")";
+
+        const cls = s.verdict === "ACCEPTED" ? "ok"
+          : s.verdict === "PENDING" || s.verdict === "JUDGING" ? "wait" : "bad";
+        log(text, cls);
+
+        if (s.failure) log("details: " + JSON.stringify(s.failure), "detail");
+        if (s.errorMessage) log(s.errorMessage, "detail");
+      });
+    }
+
+    $("loginBtn").onclick = async () => {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: $("email").value, password: $("password").value }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        $("loginMsg").textContent = data.error || "Login failed";
+        return;
+      }
+      token = data.token;
+      $("login").hidden = true;
+      $("app").hidden = false;
+      await loadProblems();
+      connectSocket();
+    };
+
+    $("submit").onclick = async () => {
+      const res = await fetch("/api/problems/" + $("problem").value + "/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: "Bearer " + token },
+        body: JSON.stringify({ code: $("code").value }),
+      });
+      const data = await res.json();
+      if (!res.ok) log("Submit failed: " + (data.error || res.status), "bad");
+      else log("request sent (HTTP " + res.status + ", id " + data.submission.id + ")");
+    };
+  </script>
+</body>
+</html>

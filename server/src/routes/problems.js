@@ -11,6 +11,8 @@ const rateLimit = require("express-rate-limit");
 const { submissionQueue } = require("../queue/submissionQueue");
 const { publicSubmission } = require("../utils/submissions");
 
+const { publishSubmissionEvent } = require("../events/publisher");
+
 const testCaseSchema = z.object({
   input: z.string().max(10000),
   expectedOutput: z.string().max(10000),
@@ -197,6 +199,19 @@ router.post(
           .json({ error: "The judge is unavailable, please try again later" });
       }
 
+      // Tell the user's other open tabs about the new submission
+      publishSubmissionEvent(req.user.id, {
+        id: submission.id,
+        problemSlug: req.params.slug,
+        verdict: "PENDING",
+        passedTests: 0,
+        totalTests: submission.totalTests,
+        failedTest: null,
+        timeMs: 0,
+        errorMessage: null,
+        failure: null,
+      });
+      
       // 3. Respond right away. 202 means "accepted, still being processed"
       res.status(202).json({ submission: publicSubmission(submission) });
     } catch (err) {

@@ -47,7 +47,8 @@ function classify(result, testCase) {
   return null;
 }
 
-async function judgeSubmission(code, problem, testCases) {
+// onProgress(passedSoFar, total) is optional; it's called after each passed test
+async function judgeSubmission(code, problem, testCases, onProgress) {
   await acquire();
   try {
     let maxTimeMs = 0;
@@ -89,6 +90,8 @@ async function judgeSubmission(code, problem, testCases) {
             : null,
         };
       }
+
+      if (onProgress) await onProgress(i + 1, testCases.length);
     }
 
     return {

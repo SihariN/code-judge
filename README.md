@@ -37,6 +37,7 @@ Hidden test cases are never revealed. Details are only shown for sample cases.
 5. Start the API: `npm run dev`
 6. In another terminal, start the judge worker: `npm run worker`
 7. Optional: open http://localhost:5000/live/ to watch verdicts update live
+8. Start the React app: `cd client && npm install && npm run dev` (opens on http://localhost:5173)
 
 ## Architecture
 

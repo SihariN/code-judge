@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { useSubmissionUpdates } from "../hooks/useSubmissionUpdates";
 import { isFinal } from "../lib/verdicts";
+import { pickResult, upsert, mergeFresh } from "../lib/submissionState";
+import { getDraftKey } from "../lib/drafts";
 import { DifficultyBadge } from "../components/Badges";
 import CodeEditor from "../components/CodeEditor";
 import VerdictPanel from "../components/VerdictPanel";
@@ -12,54 +14,7 @@ import SubmissionHistory from "../components/SubmissionHistory";
 
 const STARTER = "# Read input with input(), print the answer with print()\n\n";
 
-// Picks the result fields out of a REST submission
-function pickResult(s) {
-  return {
-    id: s.id,
-    verdict: s.verdict,
-    passedTests: s.passedTests,
-    totalTests: s.totalTests,
-    failedTest: s.failedTest,
-    timeMs: s.timeMs,
-    errorMessage: s.errorMessage,
-  };
-}
 
-// Inserts or updates a submission in the list.
-// A finished result is never replaced by an in-progress one, because events
-// and responses can arrive in an unlucky order.
-function upsert(list, update, slug) {
-  const i = list.findIndex((s) => s.id === update.id);
-
-  if (i === -1) {
-    if (update.problemSlug !== slug) return list; // belongs to another problem
-    return [{ createdAt: new Date().toISOString(), ...update }, ...list];
-  }
-
-  const current = list[i];
-  if (isFinal(current.verdict) && !isFinal(update.verdict)) return list;
-
-  const copy = [...list];
-  copy[i] = { ...current, ...update };
-  return copy;
-}
-
-// Replaces the list with fresh data from REST, but keeps things the list
-// endpoint doesn't carry (failure details, live progress)
-function mergeFresh(prev, fresh) {
-  const old = new Map(prev.map((s) => [s.id, s]));
-  return fresh.map((f) => {
-    const o = old.get(f.id);
-    if (!o) return f;
-    return {
-      ...f,
-      failure: o.failure,
-      passedTests: isFinal(f.verdict)
-        ? f.passedTests
-        : Math.max(f.passedTests, o.passedTests),
-    };
-  });
-}
 
 // Wrapper: the "key" makes React build a fresh ProblemView for each problem,
 // so code, history and results reset automatically when the URL changes
@@ -75,7 +30,7 @@ function ProblemView({ slug }) {
   const [problem, setProblem] = useState(null);
   const [loadError, setLoadError] = useState("");
 
-  const draftKey = `codejudge_draft_${slug}`;
+  const draftKey = getDraftKey(slug);
   const [code, setCode] = useState(() => {
     try {
       return localStorage.getItem(draftKey) ?? STARTER;
@@ -311,6 +266,15 @@ function ProblemView({ slug }) {
 
         <VerdictPanel submission={active} />
 
+        {active && (
+          <Link
+            to={`/submissions/${active.id}`}
+            className="block text-sm text-indigo-400 hover:underline"
+          >
+            View details and code for #{active.id}
+          </Link>
+        )}
+        
         {user && (
           <SubmissionHistory
             submissions={submissions}

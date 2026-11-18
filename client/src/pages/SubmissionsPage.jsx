@@ -1,29 +1,73 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
+import { useAuth } from "../context/AuthContext";
+import { useSubmissionUpdates } from "../hooks/useSubmissionUpdates";
+import { upsert, mergeFresh } from "../lib/submissionState";
 import { VerdictBadge } from "../components/Badges";
 
 export default function SubmissionsPage() {
+  const { user } = useAuth();
   const [submissions, setSubmissions] = useState(null);
   const [error, setError] = useState("");
 
+  // Refs hold values that callbacks need to read "right now" without
+  // causing re-renders or re-subscriptions
+  const knownIds = useRef(new Set());
+  const isLoading = useRef(false);
+  const loadAgain = useRef(false);
+
   useEffect(() => {
-    let cancelled = false;
+    knownIds.current = new Set((submissions || []).map((s) => s.id));
+  }, [submissions]);
 
-    api("/submissions?limit=50")
-      .then((data) => {
-        if (!cancelled) setSubmissions(data.submissions);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message);
-      });
+  const load = useCallback(async () => {
+    // If a load is already running, ask it to run once more when it finishes,
+    // so a result saved in between can't be missed
+    if (isLoading.current) {
+      loadAgain.current = true;
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-    };
+    isLoading.current = true;
+    try {
+      do {
+        loadAgain.current = false;
+        const data = await api("/submissions?limit=50");
+        setSubmissions((prev) => mergeFresh(prev || [], data.submissions));
+        setError("");
+      } while (loadAgain.current);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      isLoading.current = false;
+    }
   }, []);
 
-  if (error) return <p className="text-red-300">{error}</p>;
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleUpdate = useCallback(
+    (update) => {
+      // A submission we haven't seen (made in another tab): reload the list,
+      // because events don't carry the problem title
+      if (!knownIds.current.has(update.id)) {
+        load();
+        return;
+      }
+      setSubmissions((prev) => upsert(prev, update));
+    },
+    [load]
+  );
+
+  useSubmissionUpdates({
+    userId: user ? user.id : null,
+    onUpdate: handleUpdate,
+    onConnect: load,
+  });
+
+  if (error && !submissions) return <p className="text-red-300">{error}</p>;
   if (!submissions) return <p className="text-slate-400">Loading...</p>;
 
   return (
@@ -43,6 +87,7 @@ export default function SubmissionsPage() {
           <table className="w-full text-left text-sm">
             <thead className="bg-slate-900 text-slate-400">
               <tr>
+                <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">Problem</th>
                 <th className="px-4 py-2 font-medium">Verdict</th>
                 <th className="px-4 py-2 font-medium">Tests</th>
@@ -55,8 +100,16 @@ export default function SubmissionsPage() {
                 <tr key={s.id} className="hover:bg-slate-900/60">
                   <td className="px-4 py-2">
                     <Link
-                      to={`/problems/${s.problem.slug}`}
+                      to={`/submissions/${s.id}`}
                       className="text-indigo-400 hover:underline"
+                    >
+                      #{s.id}
+                    </Link>
+                  </td>
+                  <td className="px-4 py-2">
+                    <Link
+                      to={`/problems/${s.problem.slug}`}
+                      className="hover:underline"
                     >
                       {s.problem.title}
                     </Link>

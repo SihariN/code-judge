@@ -29,6 +29,13 @@ export default function Navbar() {
               My submissions
             </NavLink>
           )}
+
+          {user && user.role === "ADMIN" && (
+            <NavLink to="/admin" className={linkClass}>
+              Admin
+            </NavLink>
+          )}
+          
         </div>
 
         <div className="flex items-center gap-3 text-sm">

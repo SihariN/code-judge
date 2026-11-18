@@ -10,6 +10,8 @@ A mini online judge: submit code in the browser, run it in sandboxed Docker cont
 - Live verdict updates over WebSockets, with per-test progress
 - Hidden test cases are never revealed
 - Job queue (Redis + BullMQ) with a separate judge worker
+- Submission history that updates live, with a detail page to review (and reload) your code
+- Admin page to create and delete problems, with a Markdown preview
 
 ## How the sandbox works
 

@@ -4,6 +4,13 @@ A mini online judge: submit code in the browser, run it in sandboxed Docker cont
 
 🚧 Work in progress.
 
+## Features
+- Browse problems and solve them in a Monaco code editor
+- Code runs in locked-down Docker containers (no network, memory/CPU/time limits)
+- Live verdict updates over WebSockets, with per-test progress
+- Hidden test cases are never revealed
+- Job queue (Redis + BullMQ) with a separate judge worker
+
 ## How the sandbox works
 
 Every submission runs in a throwaway Docker container with:

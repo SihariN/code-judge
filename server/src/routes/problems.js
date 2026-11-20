@@ -3,7 +3,7 @@ const { z } = require("zod");
 
 const prisma = require("../db");
 const validate = require("../middleware/validate");
-const { requireAuth, requireRole } = require("../middleware/auth");
+const { requireAuth, requireRole, optionalAuth } = require("../middleware/auth");
 
 const DIFFICULTIES = ["EASY", "MEDIUM", "HARD"];
 
@@ -44,7 +44,12 @@ const problemSchema = z
   });
 
 // GET /api/problems?difficulty=easy
-router.get("/", async (req, res, next) => {
+// Submissions that never reached a real verdict don't count toward acceptance rates
+const UNJUDGED = ["PENDING", "JUDGING", "INTERNAL_ERROR"];
+
+// GET /api/problems?difficulty=easy
+// Adds an acceptance rate for everyone, and solved/attempted status for logged-in users
+router.get("/", optionalAuth, async (req, res, next) => {
   try {
     const where = {};
     if (req.query.difficulty) {
@@ -52,13 +57,54 @@ router.get("/", async (req, res, next) => {
       if (DIFFICULTIES.includes(d)) where.difficulty = d;
     }
 
-    const problems = await prisma.problem.findMany({
-      where,
-      orderBy: { id: "asc" },
-      select: { id: true, slug: true, title: true, difficulty: true },
-    });
+    // Four queries in total, no matter how many problems exist,
+    // and they run at the same time
+    const [problems, judged, accepted, mine] = await Promise.all([
+      prisma.problem.findMany({
+        where,
+        orderBy: { id: "asc" },
+        select: { id: true, slug: true, title: true, difficulty: true },
+      }),
+      prisma.submission.groupBy({
+        by: ["problemId"],
+        where: { verdict: { notIn: UNJUDGED } },
+        _count: { _all: true },
+      }),
+      prisma.submission.groupBy({
+        by: ["problemId"],
+        where: { verdict: "ACCEPTED" },
+        _count: { _all: true },
+      }),
+      req.user
+        ? prisma.submission.groupBy({
+            by: ["problemId", "verdict"],
+            where: { userId: req.user.id },
+            _count: { _all: true },
+          })
+        : Promise.resolve([]),
+    ]);
 
-    res.json({ problems });
+    const judgedBy = new Map(judged.map((r) => [r.problemId, r._count._all]));
+    const acceptedBy = new Map(accepted.map((r) => [r.problemId, r._count._all]));
+
+    // SOLVED beats ATTEMPTED, whatever order the rows come in
+    const statusBy = new Map();
+    for (const row of mine) {
+      if (row.verdict === "ACCEPTED") statusBy.set(row.problemId, "SOLVED");
+      else if (!statusBy.has(row.problemId)) statusBy.set(row.problemId, "ATTEMPTED");
+    }
+
+    res.json({
+      problems: problems.map((p) => {
+        const j = judgedBy.get(p.id) || 0;
+        const a = acceptedBy.get(p.id) || 0;
+        return {
+          ...p,
+          acceptance: j > 0 ? Math.round((a / j) * 100) : null,
+          status: statusBy.get(p.id) || null,
+        };
+      }),
+    });
   } catch (err) {
     next(err);
   }

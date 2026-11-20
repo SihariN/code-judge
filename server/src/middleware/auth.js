@@ -26,4 +26,22 @@ function requireRole(role) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+// Like requireAuth, but never blocks: with a valid token we set req.user,
+// otherwise the request just continues as an anonymous visitor
+function optionalAuth(req, res, next) {
+  const header = req.headers.authorization || "";
+  const [scheme, token] = header.split(" ");
+
+  if (scheme === "Bearer" && token) {
+    try {
+      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = { id: Number(payload.sub), role: payload.role };
+    } catch {
+      // an invalid or expired token is treated as "not logged in"
+    }
+  }
+
+  next();
+}
+
+module.exports = { requireAuth, requireRole, optionalAuth };

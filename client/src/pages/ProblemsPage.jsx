@@ -5,6 +5,24 @@ import { DifficultyBadge } from "../components/Badges";
 
 const FILTERS = ["ALL", "EASY", "MEDIUM", "HARD"];
 
+function StatusMark({ status }) {
+  if (status === "SOLVED") {
+    return (
+      <span title="Solved" className="w-5 text-center text-emerald-400">
+        ✓
+      </span>
+    );
+  }
+  if (status === "ATTEMPTED") {
+    return (
+      <span title="Attempted, not solved yet" className="w-5 text-center text-amber-400">
+        ●
+      </span>
+    );
+  }
+  return <span className="w-5" />;
+}
+
 export default function ProblemsPage() {
   const [filter, setFilter] = useState("ALL");
   const [problems, setProblems] = useState([]);
@@ -70,14 +88,24 @@ export default function ProblemsPage() {
           <li key={p.id}>
             <Link
               to={`/problems/${p.slug}`}
-              className="flex items-center justify-between px-4 py-3 hover:bg-slate-800/60"
+              className="flex items-center gap-3 px-4 py-3 hover:bg-slate-800/60"
             >
-              <span className="font-medium">{p.title}</span>
-              <DifficultyBadge difficulty={p.difficulty} />
+              <StatusMark status={p.status} />
+              <span className="flex-1 font-medium">{p.title}</span>
+              <span className="w-20 text-right text-sm text-slate-400">
+                {p.acceptance === null ? "-" : `${p.acceptance}%`}
+              </span>
+              <span className="w-20 text-right">
+                <DifficultyBadge difficulty={p.difficulty} />
+              </span>
             </Link>
           </li>
         ))}
       </ul>
+
+      <p className="mt-3 text-xs text-slate-500">
+        ✓ solved · ● attempted · the percentage is the acceptance rate
+      </p>
     </div>
   );
 }

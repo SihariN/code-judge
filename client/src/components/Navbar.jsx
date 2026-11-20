@@ -24,6 +24,9 @@ export default function Navbar() {
           <NavLink to="/" end className={linkClass}>
             Problems
           </NavLink>
+          <NavLink to="/leaderboard" className={linkClass}>
+            Leaderboard
+          </NavLink>
           {user && (
             <NavLink to="/submissions" className={linkClass}>
               My submissions
@@ -41,7 +44,12 @@ export default function Navbar() {
         <div className="flex items-center gap-3 text-sm">
           {user ? (
             <>
-              <span className="text-slate-300">{user.username}</span>
+              <Link
+                to={`/users/${user.username}`}
+                className="text-slate-300 hover:text-white"
+              >
+                {user.username}
+              </Link>
               <button
                 onClick={handleLogout}
                 className="rounded-md bg-slate-800 px-3 py-1.5 text-slate-200 hover:bg-slate-700"

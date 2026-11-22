@@ -10,6 +10,10 @@ const leaderboardRoutes = require("./routes/leaderboard");
 const userRoutes = require("./routes/users");
 
 const app = express();
+// Behind nginx, the real client address arrives in X-Forwarded-For
+if (process.env.TRUST_PROXY) {
+  app.set("trust proxy", Number(process.env.TRUST_PROXY));
+}
 
 app.use(cors());
 app.use(express.json({ limit: "100kb" }));

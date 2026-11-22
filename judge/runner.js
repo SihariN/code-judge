@@ -8,7 +8,9 @@ const MAX_OUTPUT_BYTES = 64 * 1024;
 
 async function runPython(code, input = "", timeLimitMs = 5000, memoryMb = 128) {
   // 1. Put the submitted code in a temp folder we can mount into the container
-  const dir = await fs.mkdtemp(path.join(os.tmpdir(), "judge-"));
+  // JUDGE_WORK_DIR lets a containerised worker use a folder shared with the host
+  const baseDir = process.env.JUDGE_WORK_DIR || os.tmpdir();
+  const dir = await fs.mkdtemp(path.join(baseDir, "judge-"));
   await fs.writeFile(path.join(dir, "main.py"), code);
 
   // The container runs as an unprivileged user, so the files must be readable by everyone

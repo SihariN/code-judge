@@ -10,6 +10,17 @@ jobs:
     name: Server tests
     runs-on: ubuntu-latest
 
+    docker:
+    name: Docker images build
+    runs-on: ubuntu-latest
+    env:
+      POSTGRES_PASSWORD: ci-password
+      JWT_SECRET: ci-secret
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build all images
+        run: docker compose -f docker-compose.prod.yml build
+
     services:
       postgres:
         image: postgres:16

@@ -75,3 +75,24 @@ npm run test:api       # API tests against a separate test database (needs Postg
 ```
 
 The sandbox tests verify that submitted code has no network access, a read-only filesystem, runs as an unprivileged user, and is stopped by time, memory and output limits. API tests run against a dedicated `codejudge_test` database and a separate queue, so they never touch development data.
+
+## Run everything with Docker
+
+Requires Docker (with Compose). No Node installation needed.
+
+```bash
+cp .env.example .env          # then edit the two values
+docker pull python:3.12-slim  # the image submissions run in
+docker compose -f docker-compose.prod.yml up -d --build
+docker compose -f docker-compose.prod.yml run --rm migrate npx prisma db seed
+```
+
+Open http://localhost:8080. To make yourself an admin after registering:
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm migrate node scripts/make-admin.js yourusername
+```
+
+> **Security note:** the judge worker starts sandbox containers through the host's Docker
+> socket, which is equivalent to root access on that host. Only run this on a machine you
+> are comfortable dedicating to the job, and never expose it publicly without hardening.

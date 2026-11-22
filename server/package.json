@@ -16,28 +16,36 @@
   "prisma": {
     "seed": "node prisma/seed.js"
   },
-"jest": {
-  "testTimeout": 60000,
-  "projects": [
-    {
-      "displayName": "unit",
-      "testEnvironment": "node",
-      "testMatch": ["<rootDir>/tests/unit/**/*.test.js"]
-    },
-    {
-      "displayName": "sandbox",
-      "testEnvironment": "node",
-      "testMatch": ["<rootDir>/tests/sandbox/**/*.test.js"]
-    },
-    {
-      "displayName": "api",
-      "testEnvironment": "node",
-      "testMatch": ["<rootDir>/tests/api/**/*.test.js"],
-      "globalSetup": "<rootDir>/tests/api/global-setup.js",
-      "setupFiles": ["<rootDir>/tests/api/setup-env.js"]
-    }
-  ]
-},
+  "jest": {
+    "testTimeout": 60000,
+    "projects": [
+      {
+        "displayName": "unit",
+        "testEnvironment": "node",
+        "testMatch": [
+          "<rootDir>/tests/unit/**/*.test.js"
+        ]
+      },
+      {
+        "displayName": "sandbox",
+        "testEnvironment": "node",
+        "testMatch": [
+          "<rootDir>/tests/sandbox/**/*.test.js"
+        ]
+      },
+      {
+        "displayName": "api",
+        "testEnvironment": "node",
+        "testMatch": [
+          "<rootDir>/tests/api/**/*.test.js"
+        ],
+        "globalSetup": "<rootDir>/tests/api/global-setup.js",
+        "setupFiles": [
+          "<rootDir>/tests/api/setup-env.js"
+        ]
+      }
+    ]
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

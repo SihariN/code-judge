@@ -108,4 +108,4 @@ async function judgeSubmission(code, problem, testCases, onProgress) {
   }
 }
 
-module.exports = { judgeSubmission };
+module.exports = { judgeSubmission, normalize, classify };

@@ -1,6 +1,6 @@
 const { createConnection } = require("../queue/config");
 
-const CHANNEL = "submission-events";
+const CHANNEL = process.env.EVENT_CHANNEL || "submission-events";
 
 const publisher = createConnection();
 publisher.on("error", (err) => console.error("Event publisher:", err.message));

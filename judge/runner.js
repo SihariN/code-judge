@@ -11,6 +11,10 @@ async function runPython(code, input = "", timeLimitMs = 5000, memoryMb = 128) {
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), "judge-"));
   await fs.writeFile(path.join(dir, "main.py"), code);
 
+  // The container runs as an unprivileged user, so the files must be readable by everyone
+  await fs.chmod(dir, 0o755);
+  await fs.chmod(path.join(dir, "main.py"), 0o644);
+
   // 2. Give the container a unique name so we can kill it on timeout
   const name = "judge-" + crypto.randomBytes(6).toString("hex");
 
@@ -25,6 +29,7 @@ async function runPython(code, input = "", timeLimitMs = 5000, memoryMb = 128) {
     "--read-only",                    // container filesystem is read-only
     "--cap-drop", "ALL",              // drop all Linux privileges
     "--security-opt", "no-new-privileges",
+    "--user", "65534:65534",          // run as "nobody", not root
     "-e", "PYTHONDONTWRITEBYTECODE=1",
     "-v", `${dir}:/sandbox:ro`,       // code is mounted read-only
     "python:3.12-slim",

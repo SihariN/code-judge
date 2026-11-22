@@ -323,3 +323,23 @@ Content-Type: application/json
 ### 44. Poll the one from request 43
 GET {{baseUrl}}/submissions/{{q4.response.body.submission.id}}
 Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 45. Problem list while logged in (expect status and acceptance fields)
+GET {{baseUrl}}/problems
+Authorization: Bearer {{adminLogin.response.body.token}}
+
+### 46. Problem list as anonymous (status is null for every problem)
+GET {{baseUrl}}/problems
+
+### 47. Problem list with an invalid token (still works, treated as anonymous)
+GET {{baseUrl}}/problems
+Authorization: Bearer garbage
+
+### 48. Leaderboard
+GET {{baseUrl}}/leaderboard
+
+### 49. Profile of the admin user (use your own username)
+GET {{baseUrl}}/users/testuser
+
+### 50. Unknown user (expect 404)
+GET {{baseUrl}}/users/nobody-here

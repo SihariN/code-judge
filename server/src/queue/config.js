@@ -1,6 +1,6 @@
 const IORedis = require("ioredis");
 
-const QUEUE_NAME = "submissions";
+const QUEUE_NAME = process.env.QUEUE_NAME || "submissions";
 
 // BullMQ workers need maxRetriesPerRequest set to null
 function createConnection({ worker = false } = {}) {

@@ -1,5 +1,5 @@
 # Code Judge
-
+![CI](https://github.com/SihariN/code-judge/actions/workflows/ci.yml/badge.svg)
 A mini online judge: submit code in the browser, run it in sandboxed Docker containers, get live verdicts.
 
 🚧 Work in progress.
@@ -64,3 +64,14 @@ flowchart LR
     R -->|7. subscribe| A
     A -.->|8. WebSocket push| U
 ```
+## Testing
+
+```bash
+cd server
+docker exec code-judge-db createdb -U judge codejudge_test   # once
+npm run test:unit      # judging logic, no dependencies
+npm run test:sandbox   # security limits of the Docker sandbox (needs Docker)
+npm run test:api       # API tests against a separate test database (needs Postgres and Redis)
+```
+
+The sandbox tests verify that submitted code has no network access, a read-only filesystem, runs as an unprivileged user, and is stopped by time, memory and output limits. API tests run against a dedicated `codejudge_test` database and a separate queue, so they never touch development data.

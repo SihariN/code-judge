@@ -6,8 +6,6 @@ An online judge in the spirit of LeetCode and Codeforces. Write a solution in th
 submit it, and watch it being judged live while it runs inside a locked-down Docker sandbox
 against hidden test cases.
 
-![Demo](docs/demo.gif)
-
 ## Features
 
 - Problem list with difficulty filter, solved/attempted marks and acceptance rates
@@ -18,17 +16,7 @@ against hidden test cases.
 - Submission history with a code viewer and "load into editor"
 - Leaderboard and public profiles (progress by difficulty, 30-day activity chart)
 - Admin page to create and delete problems, with a Markdown preview
-- Optional invite-only registration, login rate limiting, role-based access
-
-## Screenshots
-
-| Problem page | Wrong answer details |
-|---|---|
-| ![Problem page](docs/screenshots/problem-page.png) | ![Wrong answer](docs/screenshots/wrong-answer.png) |
-
-| Leaderboard | Profile |
-|---|---|
-| ![Leaderboard](docs/screenshots/leaderboard.png) | ![Profile](docs/screenshots/profile.png) |
+- Optional invite-only registration, login rate limiting and role-based access
 
 ## How a submission flows through the system
 
@@ -103,7 +91,7 @@ erDiagram
 | Queue | Redis with BullMQ, a separate worker process |
 | Sandbox | Docker containers with strict resource and privilege limits |
 | Tests and CI | Jest, Supertest, GitHub Actions |
-| Packaging | Docker Compose, nginx, Caddy (HTTPS) |
+| Packaging | Docker Compose, nginx |
 
 ## How the sandbox works
 
@@ -143,6 +131,9 @@ These claims are verified by automated tests in `server/tests/sandbox`.
 
 ## Run it
 
+Requires Docker with Compose. The project is not hosted publicly: it runs other people's
+code, which calls for a dedicated, isolated machine, so it is meant to be run locally.
+
 ### With Docker (no Node needed)
 
 ```bash
@@ -162,6 +153,7 @@ docker compose -f docker-compose.prod.yml run --rm migrate node scripts/make-adm
 
 ```bash
 docker compose up -d                      # PostgreSQL and Redis
+cp server/.env.example server/.env        # then set JWT_SECRET
 cd server && npm install
 npx prisma migrate dev && npx prisma db seed
 npm run dev                               # API on :5000
@@ -169,7 +161,7 @@ npm run worker                            # judge worker (second terminal)
 cd ../client && npm install && npm run dev   # app on :5173
 ```
 
-Deploying to a server with HTTPS: see [docs/DEPLOY.md](docs/DEPLOY.md).
+`server/api.http` contains ready-made API requests (for the VS Code "REST Client" extension).
 
 ## Testing
 
@@ -182,6 +174,21 @@ npm run test:api       # API against a separate test database (needs Postgres an
 ```
 
 CI runs all of this, plus the client lint and build and the Docker image builds, on every push.
+
+## Project structure
+
+```
+code-judge/
+├── client/                    React app (Vite, Tailwind, Monaco)
+├── server/
+│   ├── src/                   API, worker, services, queue, sockets
+│   ├── prisma/                schema, migrations, seed
+│   ├── tests/                 unit, sandbox and API tests
+│   └── scripts/               admin helper
+├── judge/                     Docker sandbox runner
+├── docker-compose.yml         development: PostgreSQL and Redis
+└── docker-compose.prod.yml    the full stack in containers
+```
 
 ## Limitations and future work
 

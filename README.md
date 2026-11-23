@@ -2,9 +2,41 @@
 
 ![CI](https://github.com/SihariN/code-judge/actions/workflows/ci.yml/badge.svg)
 
-An online judge in the spirit of LeetCode and Codeforces. Write a solution in the browser,
-submit it, and watch it being judged live while it runs inside a locked-down Docker sandbox
-against hidden test cases.
+**Code Judge** is a full-stack online programming judge inspired by platforms like LeetCode and Codeforces. It allows users to solve programming problems, submit Python solutions, and receive real-time judging results through an interactive coding environment.
+
+Built with React, Node.js, PostgreSQL, Redis, and Docker, the platform uses an asynchronous judging architecture to execute untrusted code in isolated containers, enforce resource limits, and protect hidden test cases.
+
+
+## Screenshots
+
+### Problems and coding workspace
+
+| Problems | Problem workspace |
+|---|---|
+| ![Problems](docs/screenshots/problems.png) | ![Problem workspace](docs/screenshots/problem-workspace.png) |
+
+### Submissions and verdicts
+
+| Accepted verdict | Submission history |
+|---|---|
+| ![Accepted verdict](docs/screenshots/accepted-verdict.png) | ![Submissions](docs/screenshots/submissions.png) |
+
+### User profiles and rankings
+
+| User profile | Leaderboard |
+|---|---|
+| ![Profile](docs/screenshots/profile.png) | ![Leaderboard](docs/screenshots/leaderboard.png) |
+
+### Administration
+
+![Admin dashboard](docs/screenshots/admin.png)
+
+<details>
+<summary>View additional problem detail screen</summary>
+
+![Problem details](docs/screenshots/problem-detail.png)
+
+</details>
 
 ## Features
 
@@ -129,10 +161,118 @@ These claims are verified by automated tests in `server/tests/sandbox`.
 - **Sandboxes are sibling containers.** The containerised worker talks to the host's Docker
   daemon, so each submission runs next to the worker rather than inside it.
 
-## Run it
 
-Requires Docker with Compose. The project is not hosted publicly: it runs other people's
-code, which calls for a dedicated, isolated machine, so it is meant to be run locally.
+## Getting Started
+
+### Prerequisites
+
+- Docker and Docker Compose
+- Git
+
+For local development without the full application running in Docker:
+- Node.js 22+
+- npm
+
+### Run with Docker Compose
+
+The easiest way to run the complete application is with Docker Compose.
+
+**1. Clone the repository**
+
+```bash
+git clone https://github.com/SihariN/code-judge.git
+cd code-judge
+```
+
+**2. Configure environment variables**
+
+```bash
+cp .env.example .env
+```
+
+Set `POSTGRES_PASSWORD` and `JWT_SECRET` in `.env` to secure values.
+
+**3. Pull the Python execution image**
+
+```bash
+docker pull python:3.12-slim
+```
+
+**4. Build and start the application**
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+**5. Open the application**
+
+Visit [http://localhost:8080](http://localhost:8080) and register an account.
+
+**6. Promote your account to administrator**
+
+```bash
+docker compose -f docker-compose.prod.yml run --rm migrate node scripts/make-admin.js yourusername
+```
+
+Replace `yourusername` with your registered username. Log out and log in again to obtain an updated authentication token.
+
+### Run for Development
+
+**1. Start PostgreSQL and Redis**
+
+From the project root:
+
+```bash
+docker compose up -d
+```
+
+**2. Configure the server**
+
+```bash
+Copy-Item server/.env.example server/.env
+```
+
+Update the JWT secret in `server/.env`.
+
+**3. Install server dependencies and initialize the database**
+
+```bash
+cd server
+npm install
+npx prisma migrate dev
+npx prisma db seed
+```
+
+**4. Start the API**
+
+In the first terminal, from `server`:
+
+```bash
+npm run dev
+```
+
+**5. Start the judge worker**
+
+Open a second terminal:
+
+```bash
+cd code-judge/server
+npm run worker
+```
+
+**6. Start the frontend**
+
+Open a third terminal:
+
+```bash
+cd code-judge/client
+npm install
+npm run dev
+```
+
+The development frontend is available at [http://localhost:5173](http://localhost:5173).
+
+`server/api.http` contains ready-made API requests for the VS Code REST Client extension.
 
 ### With Docker (no Node needed)
 
@@ -163,32 +303,87 @@ cd ../client && npm install && npm run dev   # app on :5173
 
 `server/api.http` contains ready-made API requests (for the VS Code "REST Client" extension).
 
+
 ## Testing
+
+The project includes unit, sandbox, and API integration tests.
+
+Run the tests from the `server` directory:
 
 ```bash
 cd server
-docker exec code-judge-db createdb -U judge codejudge_test   # once
-npm run test:unit      # judging logic
-npm run test:sandbox   # sandbox limits (needs Docker)
-npm run test:api       # API against a separate test database (needs Postgres and Redis)
 ```
 
-CI runs all of this, plus the client lint and build and the Docker image builds, on every push.
+**Unit tests** — verify output normalization and verdict classification.
 
-## Project structure
-
+```bash
+npm run test:unit
 ```
+
+**Sandbox tests** — verify container isolation and resource limits. Requires Docker.
+
+```bash
+npm run test:sandbox
+```
+
+**API integration tests** — verify backend endpoints against a separate test database. Requires PostgreSQL and Redis.
+
+Create the test database once:
+
+```bash
+docker exec code-judge-db createdb -U judge codejudge_test
+```
+
+Then run:
+
+```bash
+npm run test:api
+```
+
+The test environment uses a separate database and Redis configuration to avoid modifying development data.
+
+### Frontend checks
+
+Run from the `client` directory:
+
+```bash
+npm run lint
+npm run build
+```
+
+### Continuous Integration
+
+GitHub Actions runs the backend test suites, frontend lint and production build, and Docker image builds on pushes to `main` and pull requests.
+
+
+
+## Project Structure
+
+```text
 code-judge/
-├── client/                    React app (Vite, Tailwind, Monaco)
-├── server/
-│   ├── src/                   API, worker, services, queue, sockets
-│   ├── prisma/                schema, migrations, seed
-│   ├── tests/                 unit, sandbox and API tests
-│   └── scripts/               admin helper
-├── judge/                     Docker sandbox runner
-├── docker-compose.yml         development: PostgreSQL and Redis
-└── docker-compose.prod.yml    the full stack in containers
+├── client/                     # React frontend
+│   └── src/
+│       ├── components/
+│       ├── context/
+│       ├── hooks/
+│       ├── lib/
+│       └── pages/
+│
+├── server/                     # Express API and judge worker
+│   ├── prisma/                 # Database schema, migrations and seed
+│   ├── scripts/                # Administrative scripts
+│   ├── src/                    # API, services, queue and sockets
+│   └── tests/                  # Unit, sandbox and API tests
+│
+├── judge/                      # Docker sandbox runner
+├── docs/
+│   └── screenshots/            # Application screenshots
+│
+├── docker-compose.yml          # Development infrastructure
+├── docker-compose.prod.yml     # Full production Compose setup
+└── README.md
 ```
+
 
 ## Limitations and future work
 

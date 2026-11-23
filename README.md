@@ -1,56 +1,36 @@
 # Code Judge
-![CI](https://github.com/SihariN/code-judge/actions/workflows/ci.yml/badge.svg)
-A mini online judge: submit code in the browser, run it in sandboxed Docker containers, get live verdicts.
 
-🚧 Work in progress.
+![CI](https://github.com/SihariN/code-judge/actions/workflows/ci.yml/badge.svg)
+
+An online judge in the spirit of LeetCode and Codeforces. Write a solution in the browser,
+submit it, and watch it being judged live while it runs inside a locked-down Docker sandbox
+against hidden test cases.
+
+![Demo](docs/demo.gif)
 
 ## Features
-- Browse problems and solve them in a Monaco code editor
-- Code runs in locked-down Docker containers (no network, memory/CPU/time limits)
-- Live verdict updates over WebSockets, with per-test progress
-- Hidden test cases are never revealed
-- Job queue (Redis + BullMQ) with a separate judge worker
-- Submission history that updates live, with a detail page to review (and reload) your code
+
+- Problem list with difficulty filter, solved/attempted marks and acceptance rates
+- Monaco code editor (the VS Code editor) with Markdown problem statements
+- **Live verdicts over WebSockets**: queued, per-test progress, final result
+- Verdicts: Accepted, Wrong Answer, Time / Memory / Output Limit Exceeded, Runtime Error
+- **Hidden test cases are never revealed**, even to someone inspecting network traffic
+- Submission history with a code viewer and "load into editor"
+- Leaderboard and public profiles (progress by difficulty, 30-day activity chart)
 - Admin page to create and delete problems, with a Markdown preview
-- Leaderboard ranked by problems solved, with profile pages (stats, progress, 30-day activity)
-- Solved/attempted marks and acceptance rates on the problem list
+- Optional invite-only registration, login rate limiting, role-based access
 
-## How the sandbox works
+## Screenshots
 
-Every submission runs in a throwaway Docker container with:
-- No network access (`--network none`)
-- 128 MB memory cap, no swap
-- Half a CPU core and a 64-process limit (blocks fork bombs)
-- Read-only filesystem, all Linux capabilities dropped
-- A hard time limit enforced from the host
-- Seed sample problems: `npx prisma db seed`
-
-## Verdicts
-
-| Verdict | Meaning |
+| Problem page | Wrong answer details |
 |---|---|
-| ACCEPTED | All test cases passed |
-| WRONG_ANSWER | Output differed from the expected output |
-| TIME_LIMIT_EXCEEDED | Ran longer than the problem's limit |
-| MEMORY_LIMIT_EXCEEDED | Used more memory than the limit |
-| OUTPUT_LIMIT_EXCEEDED | Printed more than 64 KB |
-| RUNTIME_ERROR | Crashed or exited with an error |
-| INTERNAL_ERROR | The judge itself failed |
+| ![Problem page](docs/screenshots/problem-page.png) | ![Wrong answer](docs/screenshots/wrong-answer.png) |
 
-Hidden test cases are never revealed. Details are only shown for sample cases.
+| Leaderboard | Profile |
+|---|---|
+| ![Leaderboard](docs/screenshots/leaderboard.png) | ![Profile](docs/screenshots/profile.png) |
 
-## Running locally
-
-1. Start the database and Redis: `docker compose up -d`
-2. Copy `server/.env.example` to `server/.env` and set `JWT_SECRET`
-3. `cd server && npm install && npx prisma migrate dev`
-4. Seed sample problems: `npx prisma db seed`
-5. Start the API: `npm run dev`
-6. In another terminal, start the judge worker: `npm run worker`
-7. Optional: open http://localhost:5000/live/ to watch verdicts update live
-8. Start the React app: `cd client && npm install && npm run dev` (opens on http://localhost:5173)
-
-## Architecture
+## How a submission flows through the system
 
 ```mermaid
 flowchart LR
@@ -64,35 +44,161 @@ flowchart LR
     R -->|7. subscribe| A
     A -.->|8. WebSocket push| U
 ```
-## Testing
 
-```bash
-cd server
-docker exec code-judge-db createdb -U judge codejudge_test   # once
-npm run test:unit      # judging logic, no dependencies
-npm run test:sandbox   # security limits of the Docker sandbox (needs Docker)
-npm run test:api       # API tests against a separate test database (needs Postgres and Redis)
+1. The API validates the request, stores the submission as `PENDING`, puts a job holding only
+   the submission id on a queue, and returns `202 Accepted` immediately.
+2. A separate **worker** process takes the job, marks it `JUDGING`, and loads the problem.
+3. For each test case it starts a throwaway container, feeds it the input, enforces the
+   limits, and compares the normalised output. It stops at the first failure.
+4. The verdict is saved, and progress events are published through Redis.
+5. The API forwards each event to the submitting user's private Socket.IO room.
+6. If the socket drops, the client re-fetches over REST. REST is the source of truth,
+   and sockets are only for speed.
+
+## Data model
+
+```mermaid
+erDiagram
+    USER ||--o{ SUBMISSION : makes
+    PROBLEM ||--o{ SUBMISSION : receives
+    PROBLEM ||--|{ TEST_CASE : has
+    USER {
+        int id PK
+        string email UK
+        string username UK
+        string passwordHash
+        string role
+    }
+    PROBLEM {
+        int id PK
+        string slug UK
+        string title
+        string difficulty
+        int timeLimitMs
+        int memoryLimitMb
+    }
+    TEST_CASE {
+        int id PK
+        string input
+        string expectedOutput
+        boolean isSample
+    }
+    SUBMISSION {
+        int id PK
+        string code
+        string verdict
+        int passedTests
+        int totalTests
+        int timeMs
+    }
 ```
 
-The sandbox tests verify that submitted code has no network access, a read-only filesystem, runs as an unprivileged user, and is stopped by time, memory and output limits. API tests run against a dedicated `codejudge_test` database and a separate queue, so they never touch development data.
+## Tech stack
 
-## Run everything with Docker
+| Layer | Technology |
+|---|---|
+| Frontend | React, Vite, Tailwind CSS, React Router, Monaco editor, Socket.IO client |
+| API | Node.js, Express, Zod validation, JWT authentication, Socket.IO |
+| Database | PostgreSQL with Prisma (plus raw SQL for the leaderboard) |
+| Queue | Redis with BullMQ, a separate worker process |
+| Sandbox | Docker containers with strict resource and privilege limits |
+| Tests and CI | Jest, Supertest, GitHub Actions |
+| Packaging | Docker Compose, nginx, Caddy (HTTPS) |
 
-Requires Docker (with Compose). No Node installation needed.
+## How the sandbox works
+
+Every test case runs in a fresh, disposable container:
+
+| Threat | Defence |
+|---|---|
+| Code calls out to the internet or other services | `--network none` |
+| Memory bomb | `--memory` with `--memory-swap` set equal (no swap) |
+| CPU hogging, infinite loops | `--cpus 0.5` plus a wall-clock timeout and `docker kill` |
+| Fork bomb | `--pids-limit 64` |
+| Tampering with the container or the host | `--read-only` root filesystem, code mounted read-only |
+| Privilege escalation | `--cap-drop ALL`, `no-new-privileges`, runs as the unprivileged `nobody` user |
+| Flooding the output | 64 KB cap, the container is killed on overflow |
+| Leaking hidden test data | The server never sends hidden cases; event payloads are built by hand |
+
+These claims are verified by automated tests in `server/tests/sandbox`.
+
+## Design decisions
+
+- **Queue and worker instead of judging inside the request.** The API stays fast, concurrency
+  is bounded, jobs survive a crash (the queue lives in Redis), and failures are retried.
+- **Redis pub/sub between worker and API.** The WebSocket connections live in the API
+  process, so the worker publishes events and the API forwards them. This also works with
+  several API instances.
+- **REST is the source of truth.** The client loads state over REST, reloads it on every
+  socket reconnect, and polls as a safety net, so a missed event can never leave the page stuck.
+- **Results never move backwards.** A late "judging" update cannot overwrite a final verdict.
+- **Hidden tests are filtered on the server**, and a failed hidden test reveals only its number.
+- **Leaderboard in SQL.** A window function (`RANK() OVER ...`) ranks users by distinct
+  problems solved, with ties broken by who got there first. The problem list uses `groupBy`
+  to avoid the N+1 query problem.
+- **Tests never touch development data.** They use a separate database, queue name and
+  event channel, and refuse to run against a database whose name doesn't end in `_test`.
+- **Sandboxes are sibling containers.** The containerised worker talks to the host's Docker
+  daemon, so each submission runs next to the worker rather than inside it.
+
+## Run it
+
+### With Docker (no Node needed)
 
 ```bash
-cp .env.example .env          # then edit the two values
+cp .env.example .env          # then set POSTGRES_PASSWORD and JWT_SECRET
 docker pull python:3.12-slim  # the image submissions run in
 docker compose -f docker-compose.prod.yml up -d --build
 docker compose -f docker-compose.prod.yml run --rm migrate npx prisma db seed
 ```
 
-Open http://localhost:8080. To make yourself an admin after registering:
+Open http://localhost:8080, register, then make yourself an admin:
 
 ```bash
 docker compose -f docker-compose.prod.yml run --rm migrate node scripts/make-admin.js yourusername
 ```
 
-> **Security note:** the judge worker starts sandbox containers through the host's Docker
-> socket, which is equivalent to root access on that host. Only run this on a machine you
-> are comfortable dedicating to the job, and never expose it publicly without hardening.
+### For development
+
+```bash
+docker compose up -d                      # PostgreSQL and Redis
+cd server && npm install
+npx prisma migrate dev && npx prisma db seed
+npm run dev                               # API on :5000
+npm run worker                            # judge worker (second terminal)
+cd ../client && npm install && npm run dev   # app on :5173
+```
+
+Deploying to a server with HTTPS: see [docs/DEPLOY.md](docs/DEPLOY.md).
+
+## Testing
+
+```bash
+cd server
+docker exec code-judge-db createdb -U judge codejudge_test   # once
+npm run test:unit      # judging logic
+npm run test:sandbox   # sandbox limits (needs Docker)
+npm run test:api       # API against a separate test database (needs Postgres and Redis)
+```
+
+CI runs all of this, plus the client lint and build and the Docker image builds, on every push.
+
+## Limitations and future work
+
+I'd rather be upfront about these:
+
+- **Python only.** Adding a language means a new image and run command in the runner.
+- **Docker isolation is not perfect.** Containers share the host kernel, and the worker has
+  access to the Docker socket. Run it only on a dedicated, disposable machine. Stronger
+  isolation (gVisor, Firecracker microVMs, rootless Docker) is the natural next step.
+- **Timing includes container start-up.** A fixed grace period compensates; measuring CPU
+  time inside the container would be more accurate.
+- **Exact-match checking only.** Problems with several valid answers would need custom checkers.
+- **The leaderboard is computed on every request.** Fine at this scale; it would need caching later.
+- **Authentication is basic.** The JWT lives in `localStorage` (an httpOnly cookie is safer
+  against XSS), there's no email verification or password reset, and tokens can't be revoked.
+- **One worker machine.** The design allows more workers, but I haven't load-tested it.
+
+## License
+
+MIT, see [LICENSE](LICENSE).

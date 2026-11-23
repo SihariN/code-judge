@@ -8,6 +8,7 @@ const validate = require("../middleware/validate");
 const { requireAuth } = require("../middleware/auth");
 
 const rateLimit = require("express-rate-limit");
+const crypto = require("crypto");
 
 // Slows down password guessing: 30 attempts per 15 minutes per IP address
 const authLimiter = rateLimit({
@@ -27,16 +28,25 @@ const registerSchema = z.object({
     .min(3, "Username must be at least 3 characters")
     .max(20, "Username must be at most 20 characters")
     .regex(/^[a-zA-Z0-9_]+$/, "Only letters, numbers and underscores"),
-  password: z
+    password: z
     .string()
     .min(8, "Password must be at least 8 characters")
     .max(72, "Password must be at most 72 characters"),
+  inviteCode: z.string().max(100).optional(),
 });
 
 const loginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
   password: z.string().min(1),
 });
+
+// Compares two strings in constant time. Hashing first makes them the same
+// length, which timingSafeEqual requires.
+function safeEqual(a, b) {
+  const ha = crypto.createHash("sha256").update(a).digest();
+  const hb = crypto.createHash("sha256").update(b).digest();
+  return crypto.timingSafeEqual(ha, hb);
+}
 
 function signToken(user) {
   return jwt.sign(
@@ -59,7 +69,16 @@ function publicUser(user) {
 // POST /api/auth/register
 router.post("/register", authLimiter, validate(registerSchema), async (req, res, next) => {
   try {
-    const { email, username, password } = req.body;
+    const { email, username, password, inviteCode } = req.body;
+
+    // When INVITE_CODE is set, only people who know it can create accounts.
+    // This check comes before any database work.
+    const required = process.env.INVITE_CODE;
+    if (required && !safeEqual(inviteCode || "", required)) {
+      return res
+        .status(403)
+        .json({ error: "A valid invite code is required to register" });
+    }
     const passwordHash = await bcrypt.hash(password, 12);
 
     const user = await prisma.user.create({
@@ -105,6 +124,11 @@ router.get("/me", requireAuth, async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+});
+
+// GET /api/auth/config  (lets the register page know if an invite code is needed)
+router.get("/config", (req, res) => {
+  res.json({ inviteRequired: Boolean(process.env.INVITE_CODE) });
 });
 
 module.exports = router;

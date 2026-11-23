@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
+import { api } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import Field from "../components/Field";
 
@@ -10,9 +11,28 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
+  const [inviteRequired, setInviteRequired] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+
+  // Ask the server whether this site is invite-only
+  useEffect(() => {
+    let cancelled = false;
+
+    api("/auth/config")
+      .then((data) => {
+        if (!cancelled) setInviteRequired(data.inviteRequired);
+      })
+      .catch(() => {
+        // if this fails, the form still works; the server enforces the rule anyway
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   if (user) return <Navigate to="/" replace />;
 
@@ -22,7 +42,12 @@ export default function RegisterPage() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      await register(email, username, password);
+      await register(
+        email,
+        username,
+        password,
+        inviteRequired ? inviteCode : undefined
+      );
       navigate("/", { replace: true });
     } catch (err) {
       // Zod validation errors arrive as [{ field, message }]
@@ -41,6 +66,15 @@ export default function RegisterPage() {
       <h1 className="mb-6 text-2xl font-bold">Create an account</h1>
 
       <form onSubmit={handleSubmit} className="space-y-4">
+        {inviteRequired && (
+          <Field
+            label="Invite code"
+            value={inviteCode}
+            onChange={(e) => setInviteCode(e.target.value)}
+            required
+            autoComplete="off"
+          />
+        )}
         <Field
           label="Email"
           type="email"

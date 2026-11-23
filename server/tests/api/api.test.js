@@ -341,3 +341,44 @@ describe("leaderboard, stats and profiles", () => {
     expect(res.status).toBe(404);
   });
 });
+
+describe("invite-only registration", () => {
+  afterAll(() => {
+    delete process.env.INVITE_CODE;
+  });
+
+  const body = {
+    email: "erin@example.com",
+    username: "erin",
+    password: PASSWORD,
+  };
+
+  test("registration is open when no invite code is configured", async () => {
+    const res = await request(app).get("/api/auth/config");
+    expect(res.status).toBe(200);
+    expect(res.body.inviteRequired).toBe(false);
+  });
+
+  test("the config endpoint reports when an invite is required", async () => {
+    process.env.INVITE_CODE = "letmein-123";
+    const res = await request(app).get("/api/auth/config");
+    expect(res.body.inviteRequired).toBe(true);
+  });
+
+  test("registration needs the correct invite code", async () => {
+    process.env.INVITE_CODE = "letmein-123";
+
+    const missing = await request(app).post("/api/auth/register").send(body);
+    expect(missing.status).toBe(403);
+
+    const wrong = await request(app)
+      .post("/api/auth/register")
+      .send({ ...body, inviteCode: "wrong" });
+    expect(wrong.status).toBe(403);
+
+    const ok = await request(app)
+      .post("/api/auth/register")
+      .send({ ...body, inviteCode: "letmein-123" });
+    expect(ok.status).toBe(201);
+  });
+});

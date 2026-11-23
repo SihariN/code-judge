@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
@@ -17,7 +18,7 @@ export default function RegisterPage() {
   const [fieldErrors, setFieldErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
-  // Ask the server whether this site is invite-only
+  // Ask the server whether this site is invite-only.
   useEffect(() => {
     let cancelled = false;
 
@@ -26,7 +27,7 @@ export default function RegisterPage() {
         if (!cancelled) setInviteRequired(data.inviteRequired);
       })
       .catch(() => {
-        // if this fails, the form still works; the server enforces the rule anyway
+        // The server still enforces the registration rule.
       });
 
     return () => {
@@ -41,6 +42,7 @@ export default function RegisterPage() {
     setError("");
     setFieldErrors({});
     setSubmitting(true);
+
     try {
       await register(
         email,
@@ -50,79 +52,114 @@ export default function RegisterPage() {
       );
       navigate("/", { replace: true });
     } catch (err) {
-      // Zod validation errors arrive as [{ field, message }]
+      // Zod validation errors arrive as [{ field, message }].
       const byField = {};
-      for (const d of err.details) byField[d.field] = d.message;
+
+      for (const d of err.details) {
+        byField[d.field] = d.message;
+      }
+
       setFieldErrors(byField);
-      // Only show the general message when there are no per-field messages
-      if (err.details.length === 0) setError(err.message);
+
+      if (err.details.length === 0) {
+        setError(err.message);
+      }
     } finally {
       setSubmitting(false);
     }
   }
 
   return (
-    <div className="mx-auto max-w-sm">
-      <h1 className="mb-6 text-2xl font-bold">Create an account</h1>
+    <div className="mx-auto flex min-h-[65vh] max-w-md items-center justify-center py-10">
+      <div className="w-full rounded-2xl border border-slate-800 bg-slate-900/70 p-6 shadow-xl shadow-black/10 sm:p-8">
+        <div className="mb-7 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-500/20 bg-indigo-500/10 text-2xl font-bold text-indigo-400">
+            CJ
+          </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {inviteRequired && (
-          <Field
-            label="Invite code"
-            value={inviteCode}
-            onChange={(e) => setInviteCode(e.target.value)}
-            required
-            autoComplete="off"
-          />
-        )}
-        <Field
-          label="Email"
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          error={fieldErrors.email}
-          required
-          autoComplete="email"
-        />
-        <Field
-          label="Username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          error={fieldErrors.username}
-          required
-          autoComplete="username"
-        />
-        <Field
-          label="Password (at least 8 characters)"
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          error={fieldErrors.password}
-          required
-          autoComplete="new-password"
-        />
-
-        {error && (
-          <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">
-            {error}
+          <h1 className="text-2xl font-bold tracking-tight text-white">
+            Create your account
+          </h1>
+          <p className="mt-2 text-sm text-slate-400">
+            Join Code Judge and start solving problems.
           </p>
-        )}
+        </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-md bg-indigo-600 py-2 font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
-        >
-          {submitting ? "Creating account..." : "Sign up"}
-        </button>
-      </form>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {inviteRequired && (
+            <Field
+              label="Invite code"
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value)}
+              required
+              autoComplete="off"
+            />
+          )}
 
-      <p className="mt-4 text-sm text-slate-400">
-        Already have an account?{" "}
-        <Link to="/login" className="text-indigo-400 hover:underline">
-          Log in
-        </Link>
-      </p>
+          <Field
+            label="Email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            error={fieldErrors.email}
+            required
+            autoComplete="email"
+          />
+
+          <Field
+            label="Username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            error={fieldErrors.username}
+            required
+            autoComplete="username"
+          />
+
+          <div>
+            <Field
+              label="Password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              error={fieldErrors.password}
+              required
+              autoComplete="new-password"
+            />
+            <p className="mt-1.5 text-xs text-slate-500">
+              Must contain at least 8 characters.
+            </p>
+          </div>
+
+          {error && (
+            <div
+              role="alert"
+              className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300"
+            >
+              {error}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full rounded-lg bg-indigo-600 px-4 py-3 font-semibold text-white transition hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-offset-2 focus:ring-offset-slate-900 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {submitting ? "Creating account..." : "Create account"}
+          </button>
+        </form>
+
+        <div className="my-6 border-t border-slate-800" />
+
+        <p className="text-center text-sm text-slate-400">
+          Already have an account?{" "}
+          <Link
+            to="/login"
+            className="font-medium text-indigo-400 transition hover:text-indigo-300"
+          >
+            Log in
+          </Link>
+        </p>
+      </div>
     </div>
   );
 }

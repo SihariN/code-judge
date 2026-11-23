@@ -186,80 +186,133 @@ function ProblemView({ slug }) {
 
   if (!problem) return <p className="text-slate-400">Loading...</p>;
 
-  return (
-    <div className="grid gap-8 lg:grid-cols-2">
-      {/* Left: the problem statement */}
-      <section>
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-bold">{problem.title}</h1>
-          <DifficultyBadge difficulty={problem.difficulty} />
-        </div>
 
-        <p className="mb-6 text-sm text-slate-400">
-          Time limit {problem.timeLimitMs} ms · Memory limit {problem.memoryLimitMb} MB
-        </p>
+return (
+  <div className="space-y-6">
+    {/* Workspace header */}
+    <div>
+      <p className="mb-1 text-sm font-medium text-indigo-400">
+        PROBLEM WORKSPACE
+      </p>
+      <h1 className="text-2xl font-bold tracking-tight text-white">
+        {problem.title}
+      </h1>
+      <div className="mt-3 flex flex-wrap items-center gap-3">
+        <DifficultyBadge difficulty={problem.difficulty} />
+        <span className="text-xs text-slate-400">
+          Time limit: {problem.timeLimitMs} ms
+        </span>
+        <span className="text-xs text-slate-400">
+          Memory limit: {problem.memoryLimitMb} MB
+        </span>
+      </div>
+    </div>
+
+    {/* Main workspace */}
+    <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+
+      {/* Left: problem statement */}
+      <section className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/50 p-5">
+        <div className="mb-5 border-b border-slate-800 pb-3">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-300">
+            Problem description
+          </h2>
+        </div>
 
         <div className="prose prose-invert max-w-none">
           <ReactMarkdown>{problem.description}</ReactMarkdown>
         </div>
 
-        <h2 className="mb-3 mt-8 text-lg font-semibold">Examples</h2>
-        <div className="space-y-4">
-          {problem.samples.map((s, i) => (
-            <div key={i} className="grid gap-3 sm:grid-cols-2">
-              <div>
-                <div className="mb-1 text-xs uppercase text-slate-400">Input</div>
-                <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-sm">
-                  {s.input}
-                </pre>
+        <div className="mt-8">
+          <h2 className="mb-4 text-sm font-semibold uppercase tracking-wide text-slate-300">
+            Examples
+          </h2>
+
+          <div className="space-y-4">
+            {problem.samples.map((s, i) => (
+              <div
+                key={i}
+                className="rounded-lg border border-slate-800 bg-slate-950/60 p-4"
+              >
+                <p className="mb-3 text-xs font-medium text-slate-400">
+                  Example {i + 1}
+                </p>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Input
+                    </div>
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-slate-900 p-3 text-sm text-slate-200">
+                      {s.input}
+                    </pre>
+                  </div>
+
+                  <div className="min-w-0">
+                    <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">
+                      Output
+                    </div>
+                    <pre className="overflow-x-auto whitespace-pre-wrap rounded-md bg-slate-900 p-3 text-sm text-slate-200">
+                      {s.expectedOutput}
+                    </pre>
+                  </div>
+                </div>
               </div>
-              <div>
-                <div className="mb-1 text-xs uppercase text-slate-400">Output</div>
-                <pre className="overflow-x-auto rounded-md bg-slate-900 p-3 text-sm">
-                  {s.expectedOutput}
-                </pre>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Right: editor, result and history */}
-      <section className="space-y-4">
-        <div className="overflow-hidden rounded-lg border border-slate-800">
-          <div className="flex items-center justify-between bg-slate-900 px-3 py-2">
-            <span className="text-sm text-slate-300">Python 3</span>
+      {/* Right: editor, results and history */}
+      <section className="min-w-0 space-y-4">
+        <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-800 bg-slate-900 px-4 py-3">
+            <div>
+              <h2 className="text-sm font-semibold text-white">
+                Code editor
+              </h2>
+              <p className="mt-0.5 text-xs text-slate-400">
+                Python 3
+              </p>
+            </div>
+
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCode(STARTER)}
-                className="rounded-md px-3 py-1 text-sm text-slate-400 hover:text-white"
+                className="rounded-md px-3 py-2 text-sm text-slate-400 transition hover:bg-slate-800 hover:text-white"
               >
                 Reset
               </button>
+
               {user ? (
                 <button
                   onClick={handleSubmit}
                   disabled={submitting}
-                  className="rounded-md bg-indigo-600 px-4 py-1 text-sm font-medium text-white hover:bg-indigo-500 disabled:opacity-50"
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  {submitting ? "Submitting..." : "Submit"}
+                  {submitting ? "Submitting..." : "Submit solution"}
                 </button>
               ) : (
                 <Link
                   to="/login"
                   state={{ from: location }}
-                  className="rounded-md bg-indigo-600 px-4 py-1 text-sm font-medium text-white hover:bg-indigo-500"
+                  className="rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-indigo-500"
                 >
                   Log in to submit
                 </Link>
               )}
             </div>
           </div>
-          <CodeEditor value={code} onChange={setCode} onSubmit={handleSubmit} />
+
+          <CodeEditor
+            value={code}
+            onChange={setCode}
+            onSubmit={handleSubmit}
+          />
         </div>
 
         {submitError && (
-          <p className="rounded-md bg-red-500/10 px-3 py-2 text-sm text-red-300">
+          <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-4 py-3 text-sm text-red-300">
             {submitError}
           </p>
         )}
@@ -269,12 +322,12 @@ function ProblemView({ slug }) {
         {active && (
           <Link
             to={`/submissions/${active.id}`}
-            className="block text-sm text-indigo-400 hover:underline"
+            className="block text-sm text-indigo-400 transition hover:text-indigo-300 hover:underline"
           >
             View details and code for #{active.id}
           </Link>
         )}
-        
+
         {user && (
           <SubmissionHistory
             submissions={submissions}
@@ -284,5 +337,7 @@ function ProblemView({ slug }) {
         )}
       </section>
     </div>
-  );
+  </div>
+);
+
 }
